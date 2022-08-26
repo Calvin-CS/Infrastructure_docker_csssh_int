@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cssshint-{{ default "staging" .Release.Namespace }}
+  namespace: {{ default "staging" .Release.Namespace }}
+  labels:
+    app: cssshint-{{ default "staging" .Release.Namespace }}
+  annotations: 
+    "builddate": "20220826-01"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cssshint-{{ default "staging" .Release.Namespace }}
+  template:
+    metadata:
+      labels:
+        app: cssshint-{{ default "staging" .Release.Namespace }}
+        {{ if ne .Release.Namespace "production" }}name: cs-ssh-int-{{ .Release.Namespace }}{{- else }}hostname: cs-ssh-int{{- end }}
+    spec:
+      {{ if ne .Release.Namespace "production" }}hostname: cs-ssh-int-{{ .Release.Namespace }}{{- else }}hostname: cs-ssh-int{{- end }} 
+      dnsPolicy: Default
+      dnsConfig:
+        searches:
+          - cs.calvin.edu
+      containers:
+      - name: cssshint-{{ default "staging" .Release.Namespace }}
+        image: {{ .Values.image.registry }}/{{ .Values.image.name }}:{{ default "latest" .Values.image.tag }}
+        ports:
+        - containerPort: 22
+        volumeMounts:
+        - mountPath: /home
+          name: mount0
+        - mountPath: /rprojects
+          name: mount2
+        - mountPath: /opt/R
+          name: mount3
+          readOnly: true
+        - mountPath: /opt/python
+          name: mount4
+          readOnly: true
+        - mountPath: /opt/anaconda
+          name: mount5
+          readOnly: true
+      volumes:
+      - name: mount0
+        nfs:
+          path: /export/home
+          server: aznfs-int.cs.calvin.edu
+      - name: mount2
+        nfs:
+          path: /export/rprojects
+          server: aznfs-int.cs.calvin.edu
+      - name: mount3
+        nfs:
+          path: /export/r
+          server: aznfs-int.cs.calvin.edu
+      - name: mount4
+        nfs:
+          path: /export/python
+          server: aznfs-int.cs.calvin.edu
+      - name: mount5
+        nfs:
+          path: /export/anaconda
+          server: aznfs-int.cs.calvin.edu
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cssshint-{{ default "staging" .Release.Namespace }}
+  namespace: {{ default "staging" .Release.Namespace }}
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: cs-ssh-int{{- if ne .Release.Namespace "production" }}-{{ default "staging" .Release.Namespace }}{{- end }}.{{ .Values.dns.name }}
+    service.beta.kubernetes.io/azure-dns-label-name: calvincs-cs-ssh-int{{- if ne .Release.Namespace "production" }}-{{ default "staging" .Release.Namespace }}{{- end }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: 22
+    targetPort: 22
+    name: ssh
+    protocol: TCP
+  selector:
+    app: cssshint-{{ default "staging" .Release.Namespace }}

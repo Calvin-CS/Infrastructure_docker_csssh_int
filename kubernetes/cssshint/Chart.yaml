@@ -1,0 +1,4 @@
+apiVersion: v2
+name: cssshint
+description: A Helm chart for Kubernetes deployment of cs-ssh-int , internal clusterip version
+version: 0.1.0
